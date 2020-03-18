@@ -36,10 +36,7 @@ const Content = styled.div`
   margin-right: 10px;
 `;
 
-// const wrapOption = o => ({ label: o, value: o });
-// const wrapOption = o => ({ field: o });
 const defaultFields = ['timestamp', 'source', 'message'];
-// const defaultFieldOptions = defaultFields.map(wrapOption);
 
 const infoText = (URLUtils.areCredentialsInURLSupported()
   ? 'Please right click the download link below and choose "Save Link As..." to download the CSV file.'
@@ -51,13 +48,8 @@ const _onSortDirectionChange = (newDirection, selectedSort, setSelectedSort) => 
   setSelectedSort(newSort);
 };
 
-const _widgetLabel = (widgetTitles, widgetId) => {
-  return widgetId;
-  // return widgetTitles.get(widgetId);
-};
-
-const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) => {
-  const messageWidgets = view.view.state.reduce((result, viewState) => {
+const extractMessageWidgets = (viewStates) => {
+  return viewStates.reduce((result, viewState) => {
     let stateWidgets = Immutable.Map();
     viewState.widgets.forEach((widget) => {
       if (widget.type === 'messages') {
@@ -66,22 +58,28 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) =>
     });
     return result.merge(stateWidgets);
   }, Immutable.Map());
-  const widgetTitles = view.view.state.reduce((result, viewState) => {
-    const stateTitles = Immutable.Map();
-    // viewState.titles.get('widget').forEach((title, key) => {
-    //   stateTitles = stateTitles.set(key, title);
-    // });
+};
+
+const extractWidgetTitles = (viewStates) => {
+  return viewStates.reduce((result, viewState) => {
+    const widgetTitles = viewState.titles.get('widget');
+    let stateTitles = Immutable.Map();
+    if (widgetTitles) {
+      viewState.titles.get('widget').forEach((title, key) => {
+        stateTitles = stateTitles.set(key, title);
+      });
+    }
     return result.merge(stateTitles);
   }, Immutable.Map());
+};
 
+const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) => {
+  const messageWidgets = extractMessageWidgets(view.view.state);
+  const widgetTitles = extractWidgetTitles(view.view.state);
   const currentWidget = currentWidgetId ? messageWidgets.find(widget => widget.id === currentWidgetId) : messageWidgets.first();
-
-
-  const widgetOptions = messageWidgets.map(widget => ({ label: _widgetLabel(widgetTitles, widget.id), value: widget }));
-
-
+  const widgetOptions = messageWidgets.map(widget => ({ label: widgetTitles.get(widget.id) || 'Message table without title', value: widget })).toArray();
   const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : defaultFields.map(fieldName => ({ field: fieldName })));
-  const [selectedWidget, setSelectedWidget] = useState(null);
+  const [selectedWidget, setSelectedWidget] = useState(currentWidget);
   const [selectedSort, setSelectedSort] = useState(currentWidget ? currentWidget.config.sort : []);
   const [sortDirection] = (selectedSort || []).map(s => s.direction);
   const multiSelect = !currentWidgetId && messageWidgets.size > 1;
@@ -124,7 +122,7 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) =>
               <Select placeholder="Select widget to adopt settings"
                       onChange={selection => _onApplyWidgetSettings(selection)}
                       options={widgetOptions}
-                      value={selectedWidget ? { value: selectedWidget, label: selectedWidget.id } : null} />
+                      value={selectedWidget ? { value: selectedWidget, label: widgetTitles.get(selectedWidget.id) || 'No widget title' } : null} />
             </Row>
           )}
           <Row>
