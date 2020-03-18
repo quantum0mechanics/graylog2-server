@@ -54,32 +54,15 @@ const _onApplyWidgetSettings = ({ value: newWidget }, setSelectedWidget, setSele
 };
 
 const extractMessageWidgets = (viewStates) => {
-  return viewStates.reduce((result, viewState) => {
-    let stateWidgets = Immutable.Map();
-    viewState.widgets.forEach((widget) => {
-      if (widget.type === 'messages') {
-        stateWidgets = stateWidgets.set(widget.id, widget);
-      }
-    });
-    return result.merge(stateWidgets);
-  }, Immutable.Map());
+  return viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
 };
 
 const extractWidgetTitles = (viewStates) => {
-  return viewStates.reduce((result, viewState) => {
-    const widgetTitles = viewState.titles.get('widget');
-    let stateTitles = Immutable.Map();
-    if (widgetTitles) {
-      viewState.titles.get('widget').forEach((title, key) => {
-        stateTitles = stateTitles.set(key, title);
-      });
-    }
-    return result.merge(stateTitles);
-  }, Immutable.Map());
+  return viewStates.map(state => state.titles.get('widget')).flatten(true);
 };
 
 const widgetOption = (widget, widgetTitles) => {
-  return { label: widgetTitles.get(widget.id) || 'Message table without title', value: widget };
+  return { label: widgetTitles.get(widget.id) || 'Untitled Message Table', value: widget };
 };
 
 const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixedWidgetId, allwaysShowWidgetSelection }: Props) => {
