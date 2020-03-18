@@ -27,7 +27,7 @@ const ValueComponent = styled.span`
 type Props = {
   allwaysShowWidgetSelection: boolean,
   closeModal: () => void,
-  currentWidgetId?: string,
+  fixedWidgetId?: string,
   fields: Immutable.List<FieldTypeMapping>,
   view: View
 };
@@ -47,6 +47,16 @@ const infoText = (URLUtils.areCredentialsInURLSupported()
 const _onSortDirectionChange = (newDirection, selectedSort, setSelectedSort) => {
   const newSort = selectedSort.map(sort => sort.toBuilder().direction(newDirection).build());
   setSelectedSort(newSort);
+};
+
+const _onFieldSelect = (newFields, setSelectedFields) => {
+  setSelectedFields(newFields.map(field => ({ field: field.value })));
+};
+
+const _onApplyWidgetSettings = ({ value: newWidget }, setSelectedWidget, setSelectedFields, setSelectedSort) => {
+  setSelectedWidget(newWidget);
+  setSelectedFields(newWidget.config.fields.map(fieldName => ({ field: fieldName })));
+  setSelectedSort(newWidget.config.sort);
 };
 
 const extractMessageWidgets = (viewStates) => {
@@ -74,31 +84,16 @@ const extractWidgetTitles = (viewStates) => {
   }, Immutable.Map());
 };
 
-const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShowWidgetSelection }: Props) => {
-  const messageWidgets = extractMessageWidgets(view.state);
-  const widgetTitles = extractWidgetTitles(view.state);
-  const currentWidget = currentWidgetId ? messageWidgets.find(widget => widget.id === currentWidgetId) : messageWidgets.first();
+const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixedWidgetId, allwaysShowWidgetSelection }: Props) => {
+  const messageWidgets = extractMessageWidgets(viewStates);
+  const widgetTitles = extractWidgetTitles(viewStates);
+  const currentWidget = fixedWidgetId ? messageWidgets.find(widget => widget.id === fixedWidgetId) : messageWidgets.first();
   const widgetOptions = messageWidgets.map(widget => ({ label: widgetTitles.get(widget.id) || 'Message table without title', value: widget })).toArray();
-  const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : defaultFields.map(fieldName => ({ field: fieldName })));
+  const showWidgetSelection = allwaysShowWidgetSelection || (!fixedWidgetId && messageWidgets.size > 1);
+  const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : null);
   const [selectedWidget, setSelectedWidget] = useState(currentWidget);
   const [selectedSort, setSelectedSort] = useState(currentWidget ? currentWidget.config.sort : []);
-  const [sortDirection] = (selectedSort || []).map(s => s.direction);
-  const showWidgetSelection = allwaysShowWidgetSelection || (!currentWidgetId && messageWidgets.size > 1);
-
-  const _onApplyWidgetSettings = ({ value: newWidget }) => {
-    setSelectedWidget(newWidget);
-    setSelectedFields(newWidget.config.fields.map(fieldName => ({ field: fieldName })));
-    setSelectedSort(newWidget.config.sort);
-  };
-
-  const _onFieldSelect = (newFields) => {
-    setSelectedFields(newFields.map(field => ({ field: field.value })));
-  };
-
-  const _onSortSelect = (newSort) => {
-    setSelectedSort(newSort);
-  };
-
+  const [selectedSortDirection] = (selectedSort || []).map(s => s.direction);
   const fieldsForSelect = fields
     .map(fieldType => fieldType.name)
     .map(fieldName => ({ label: fieldName, value: fieldName }))
@@ -107,6 +102,7 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShow
     .sort((v1, v2) => defaultCompare(v1.label, v2.label));
 
   const startDownload = () => {};
+
   return (
     <BootstrapModalWrapper showModal>
       <Modal.Header>
@@ -121,7 +117,7 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShow
             <Row>
               <span>Adopt message table settings:</span>
               <Select placeholder="Select widget to adopt settings"
-                      onChange={selection => _onApplyWidgetSettings(selection)}
+                      onChange={selection => _onApplyWidgetSettings(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
                       options={widgetOptions}
                       value={selectedWidget ? { value: selectedWidget, label: widgetTitles.get(selectedWidget.id) || 'No widget title' } : null} />
             </Row>
@@ -129,17 +125,17 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShow
           <Row>
             <span>Select fields to export:</span>
             <SortableSelect options={fieldsForSelect}
-                            onChange={newFields => _onFieldSelect(newFields)}
+                            onChange={_onFieldSelect}
                             valueComponent={({ children: _children }) => <ValueComponent>{_children}</ValueComponent>}
                             value={selectedFields} />
           </Row>
           <Row>
             <span>Select sort:</span>
-            <FieldSortSelect fields={fields} sort={selectedSort} onChange={sort => _onSortSelect(sort)} />
+            <FieldSortSelect fields={fields} sort={selectedSort} onChange={setSelectedSort} />
           </Row>
           <Row>
             <span>Select sort direction:</span>
-            <SortDirectionSelect direction={sortDirection ? sortDirection.direction : null}
+            <SortDirectionSelect direction={selectedSortDirection ? selectedSortDirection.direction : null}
                                  onChange={newDirection => _onSortDirectionChange(newDirection, selectedSort, setSelectedSort)} />
           </Row>
         </Content>
@@ -155,14 +151,14 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShow
 CSVExportModal.propTypes = {
   allwaysShowWidgetSelection: PropTypes.bool,
   closeModal: PropTypes.func,
-  currentWidgetId: PropTypes.string,
+  fixedWidgetId: PropTypes.string,
   fields: CustomPropTypes.FieldListType.isRequired,
 };
 
 CSVExportModal.defaultProps = {
   allwaysShowWidgetSelection: false,
   closeModal: () => {},
-  currentWidgetId: null,
+  fixedWidgetId: null,
 };
 
 export default connect(
