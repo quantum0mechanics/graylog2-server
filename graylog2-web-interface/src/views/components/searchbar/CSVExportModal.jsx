@@ -9,19 +9,35 @@ import View from 'views/logic/views/View';
 
 import connect from 'stores/connect';
 import { FieldTypesStore } from 'views/stores/FieldTypesStore';
-import SortDirectionSelect from 'views/components/widgets/SortDirectionSelect';
-
-import URLUtils from 'util/URLUtils';
-import { Modal, Button, Row } from 'components/graylog';
+import { Modal, Button } from 'components/graylog';
 import BootstrapModalWrapper from 'components/bootstrap/BootstrapModalWrapper';
-import FieldSortSelect from 'views/components/widgets/FieldSortSelect';
-import FieldSelect from 'views/components/widgets/FieldSelect';
-
-import Select from 'views/components/Select';
 import FieldTypeMapping from 'views/logic/fieldtypes/FieldTypeMapping';
+import CSVExportWidgetSelection from 'views/components/searchbar/CSVExportWidgetSelection';
+import CSVExportSettings from 'views/components/searchbar/CSVExportSettings';
+
+
+const _onSelectWidget = ({ value: newWidget }, setSelectedWidget, setSelectedFields, setSelectedSort) => {
+  setSelectedWidget(newWidget);
+  setSelectedFields(newWidget.config.fields.map(fieldName => ({ field: fieldName })));
+  setSelectedSort(newWidget.config.sort);
+};
+
+const _onFieldSelect = (newFields, setSelectedFields) => {
+  setSelectedFields(newFields.map(field => ({ field: field.value })));
+};
+
+const _initialWidget = (messageWidgets, fixedWidgetId, allwaysAllowWidgetSelection) => {
+  if (fixedWidgetId) {
+    return messageWidgets.find(widget => widget.id === fixedWidgetId);
+  }
+  if (!allwaysAllowWidgetSelection && messageWidgets.size === 1) {
+    return messageWidgets.first();
+  }
+  return null;
+};
 
 type Props = {
-  allwaysShowWidgetSelection: boolean,
+  allwaysAllowWidgetSelection: boolean,
   closeModal: () => void,
   fixedWidgetId?: string,
   fields: Immutable.List<FieldTypeMapping>,
@@ -29,107 +45,61 @@ type Props = {
 };
 
 const Content = styled.div`
-  margin-left: 10px;
-  margin-right: 10px;
+  margin-left: 15px;
+  margin-right: 15px;
 `;
 
-const infoText = (URLUtils.areCredentialsInURLSupported()
-  ? 'Please right click the download link below and choose "Save Link As..." to download the CSV file.'
-  : 'Please click the download link below. Your browser may ask for your username and password to '
-    + 'download the CSV file.');
-
-const _onSortDirectionChange = (newDirection, selectedSort, setSelectedSort) => {
-  const newSort = selectedSort.map(sort => sort.toBuilder().direction(newDirection).build());
-  setSelectedSort(newSort);
-};
-
-const _onFieldSelect = (newFields, setSelectedFields) => {
-  setSelectedFields(newFields.map(field => ({ field: field.value })));
-};
-
-const _onApplyWidgetSettings = ({ value: newWidget }, setSelectedWidget, setSelectedFields, setSelectedSort) => {
-  setSelectedWidget(newWidget);
-  setSelectedFields(newWidget.config.fields.map(fieldName => ({ field: fieldName })));
-  setSelectedSort(newWidget.config.sort);
-};
-
-const extractMessageWidgets = (viewStates) => {
-  return viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
-};
-
-const extractWidgetTitles = (viewStates) => {
-  return viewStates.map(state => state.titles.get('widget')).flatten(true);
-};
-
-const widgetOption = (widget, widgetTitles) => {
-  return { label: widgetTitles.get(widget.id) || 'Untitled Message Table', value: widget };
-};
-
-const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixedWidgetId, allwaysShowWidgetSelection }: Props) => {
-  const messageWidgets = extractMessageWidgets(viewStates);
-  const widgetTitles = extractWidgetTitles(viewStates);
-  const currentWidget = fixedWidgetId ? messageWidgets.find(widget => widget.id === fixedWidgetId) : messageWidgets.first();
-  const currentWidgetFields = currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : null;
-  const widgetOptions = messageWidgets.map(widget => (widgetOption(widget, widgetTitles))).toArray();
-  const showWidgetSelection = allwaysShowWidgetSelection || (!fixedWidgetId && messageWidgets.size > 1);
-
-  const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidgetFields : null);
-  const [selectedWidget, setSelectedWidget] = useState(currentWidget);
-  const [selectedSort, setSelectedSort] = useState(currentWidget ? currentWidget.config.sort : []);
+const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixedWidgetId, allwaysAllowWidgetSelection }: Props) => {
+  const messageWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
+  const initialWidget = _initialWidget(messageWidgets, fixedWidgetId, allwaysAllowWidgetSelection);
+  const [selectedWidget, setSelectedWidget] = useState(initialWidget);
+  const [selectedFields, setSelectedFields] = useState(selectedWidget ? selectedWidget.config.fields.map(fieldName => ({ field: fieldName })) : null);
+  const [selectedSort, setSelectedSort] = useState(selectedWidget ? selectedWidget.config.sort : []);
   const [selectedSortDirection] = (selectedSort || []).map(s => s.direction);
   const startDownload = () => {};
 
   return (
     <BootstrapModalWrapper showModal>
       <Modal.Header>
-        <Modal.Title>Export as CSV</Modal.Title>
+        <Modal.Title>Export to CSV</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Content>
-          <Row>
-            <p>{infoText}</p>
-          </Row>
-          {showWidgetSelection && (
-            <Row>
-              <span>Select message table:</span>
-              <Select placeholder="Select widget to adopt settings"
-                      onChange={selection => _onApplyWidgetSettings(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
-                      options={widgetOptions}
-                      value={selectedWidget ? widgetOption(selectedWidget, widgetTitles) : null} />
-            </Row>
-          )}
-          <Row>
-            <span>Select fields to export:</span>
-            <FieldSelect fields={fields} onChange={newFields => _onFieldSelect(newFields, setSelectedFields)} value={selectedFields} />
-          </Row>
-          <Row>
-            <span>Select sort:</span>
-            <FieldSortSelect fields={fields} sort={selectedSort} onChange={setSelectedSort} />
-          </Row>
-          <Row>
-            <span>Select sort direction:</span>
-            <SortDirectionSelect direction={selectedSortDirection ? selectedSortDirection.direction : null}
-                                 onChange={newDirection => _onSortDirectionChange(newDirection, selectedSort, setSelectedSort)} />
-          </Row>
+          {!selectedWidget
+            ? (
+              <CSVExportWidgetSelection selectWidget={selection => _onSelectWidget(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
+                                        viewStates={viewStates}
+                                        widgets={messageWidgets} />
+            )
+            : (
+              <CSVExportSettings fields={fields}
+                                 selectedFields={selectedFields}
+                                 selectedSort={selectedSort}
+                                 selectedSortDirection={selectedSortDirection}
+                                 selectField={newFields => _onFieldSelect(newFields, setSelectedFields)}
+                                 setSelectedSort={setSelectedSort}
+                                 selectedWidget={selectedWidget} />
+            )}
         </Content>
       </Modal.Body>
       <Modal.Footer>
+        {(selectedWidget && messageWidgets.size > 1 && !fixedWidgetId) && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different widget</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
-        <Button type="button" onClick={startDownload} bsStyle="primary">Start Download</Button>
+        <Button type="button" onClick={startDownload} disabled={!selectedWidget} bsStyle="primary">Start Download</Button>
       </Modal.Footer>
     </BootstrapModalWrapper>
   );
 };
 
 CSVExportModal.propTypes = {
-  allwaysShowWidgetSelection: PropTypes.bool,
+  allwaysAllowWidgetSelection: PropTypes.bool,
   closeModal: PropTypes.func,
   fixedWidgetId: PropTypes.string,
   fields: CustomPropTypes.FieldListType.isRequired,
 };
 
 CSVExportModal.defaultProps = {
-  allwaysShowWidgetSelection: false,
+  allwaysAllowWidgetSelection: false,
   closeModal: () => {},
   fixedWidgetId: null,
 };
