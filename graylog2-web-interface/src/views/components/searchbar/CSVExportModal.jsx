@@ -10,19 +10,15 @@ import View from 'views/logic/views/View';
 import connect from 'stores/connect';
 import { FieldTypesStore } from 'views/stores/FieldTypesStore';
 import SortDirectionSelect from 'views/components/widgets/SortDirectionSelect';
-import { defaultCompare } from 'views/logic/DefaultCompare';
+
 import URLUtils from 'util/URLUtils';
 import { Modal, Button, Row } from 'components/graylog';
 import BootstrapModalWrapper from 'components/bootstrap/BootstrapModalWrapper';
 import FieldSortSelect from 'views/components/widgets/FieldSortSelect';
-import SortableSelect from 'views/components/aggregationbuilder/SortableSelect';
+import FieldSelect from 'views/components/widgets/FieldSelect';
 
 import Select from 'views/components/Select';
 import FieldTypeMapping from 'views/logic/fieldtypes/FieldTypeMapping';
-
-const ValueComponent = styled.span`
-  padding: 2px 5px;
-`;
 
 type Props = {
   allwaysShowWidgetSelection: boolean,
@@ -36,8 +32,6 @@ const Content = styled.div`
   margin-left: 10px;
   margin-right: 10px;
 `;
-
-const defaultFields = ['timestamp', 'source', 'message'];
 
 const infoText = (URLUtils.areCredentialsInURLSupported()
   ? 'Please right click the download link below and choose "Save Link As..." to download the CSV file.'
@@ -84,29 +78,28 @@ const extractWidgetTitles = (viewStates) => {
   }, Immutable.Map());
 };
 
+const widgetOption = (widget, widgetTitles) => {
+  return { label: widgetTitles.get(widget.id) || 'Message table without title', value: widget };
+};
+
 const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixedWidgetId, allwaysShowWidgetSelection }: Props) => {
   const messageWidgets = extractMessageWidgets(viewStates);
   const widgetTitles = extractWidgetTitles(viewStates);
   const currentWidget = fixedWidgetId ? messageWidgets.find(widget => widget.id === fixedWidgetId) : messageWidgets.first();
-  const widgetOptions = messageWidgets.map(widget => ({ label: widgetTitles.get(widget.id) || 'Message table without title', value: widget })).toArray();
+  const currentWidgetFields = currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : null;
+  const widgetOptions = messageWidgets.map(widget => (widgetOption(widget, widgetTitles))).toArray();
   const showWidgetSelection = allwaysShowWidgetSelection || (!fixedWidgetId && messageWidgets.size > 1);
-  const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : null);
+
+  const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidgetFields : null);
   const [selectedWidget, setSelectedWidget] = useState(currentWidget);
   const [selectedSort, setSelectedSort] = useState(currentWidget ? currentWidget.config.sort : []);
   const [selectedSortDirection] = (selectedSort || []).map(s => s.direction);
-  const fieldsForSelect = fields
-    .map(fieldType => fieldType.name)
-    .map(fieldName => ({ label: fieldName, value: fieldName }))
-    .valueSeq()
-    .toJS()
-    .sort((v1, v2) => defaultCompare(v1.label, v2.label));
-
   const startDownload = () => {};
 
   return (
     <BootstrapModalWrapper showModal>
       <Modal.Header>
-        <Modal.Title>Export search results as CSV</Modal.Title>
+        <Modal.Title>Export as CSV</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Content>
@@ -115,19 +108,16 @@ const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixed
           </Row>
           {showWidgetSelection && (
             <Row>
-              <span>Adopt message table settings:</span>
+              <span>Select message table:</span>
               <Select placeholder="Select widget to adopt settings"
                       onChange={selection => _onApplyWidgetSettings(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
                       options={widgetOptions}
-                      value={selectedWidget ? { value: selectedWidget, label: widgetTitles.get(selectedWidget.id) || 'No widget title' } : null} />
+                      value={selectedWidget ? widgetOption(selectedWidget, widgetTitles) : null} />
             </Row>
           )}
           <Row>
             <span>Select fields to export:</span>
-            <SortableSelect options={fieldsForSelect}
-                            onChange={_onFieldSelect}
-                            valueComponent={({ children: _children }) => <ValueComponent>{_children}</ValueComponent>}
-                            value={selectedFields} />
+            <FieldSelect fields={fields} onChange={newFields => _onFieldSelect(newFields, setSelectedFields)} value={selectedFields} />
           </Row>
           <Row>
             <span>Select sort:</span>
