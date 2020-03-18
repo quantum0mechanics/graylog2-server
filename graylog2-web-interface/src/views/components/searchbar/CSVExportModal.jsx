@@ -5,7 +5,7 @@ import CustomPropTypes from 'views/components/CustomPropTypes';
 import * as Immutable from 'immutable';
 import styled from 'styled-components';
 
-import type { ViewStoreState } from 'views/stores/ViewStore';
+import View from 'views/logic/views/View';
 
 import connect from 'stores/connect';
 import { FieldTypesStore } from 'views/stores/FieldTypesStore';
@@ -25,10 +25,11 @@ const ValueComponent = styled.span`
 `;
 
 type Props = {
-  fields: Immutable.List<FieldTypeMapping>,
+  allwaysShowWidgetSelection: boolean,
   closeModal: () => void,
   currentWidgetId?: string,
-  view: ViewStoreState
+  fields: Immutable.List<FieldTypeMapping>,
+  view: View
 };
 
 const Content = styled.div`
@@ -73,16 +74,16 @@ const extractWidgetTitles = (viewStates) => {
   }, Immutable.Map());
 };
 
-const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) => {
-  const messageWidgets = extractMessageWidgets(view.view.state);
-  const widgetTitles = extractWidgetTitles(view.view.state);
+const CSVExportModal = ({ closeModal, fields, view, currentWidgetId, allwaysShowWidgetSelection }: Props) => {
+  const messageWidgets = extractMessageWidgets(view.state);
+  const widgetTitles = extractWidgetTitles(view.state);
   const currentWidget = currentWidgetId ? messageWidgets.find(widget => widget.id === currentWidgetId) : messageWidgets.first();
   const widgetOptions = messageWidgets.map(widget => ({ label: widgetTitles.get(widget.id) || 'Message table without title', value: widget })).toArray();
   const [selectedFields, setSelectedFields] = useState(currentWidget ? currentWidget.config.fields.map(fieldName => ({ field: fieldName })) : defaultFields.map(fieldName => ({ field: fieldName })));
   const [selectedWidget, setSelectedWidget] = useState(currentWidget);
   const [selectedSort, setSelectedSort] = useState(currentWidget ? currentWidget.config.sort : []);
   const [sortDirection] = (selectedSort || []).map(s => s.direction);
-  const multiSelect = !currentWidgetId && messageWidgets.size > 1;
+  const showWidgetSelection = allwaysShowWidgetSelection || (!currentWidgetId && messageWidgets.size > 1);
 
   const _onApplyWidgetSettings = ({ value: newWidget }) => {
     setSelectedWidget(newWidget);
@@ -116,7 +117,7 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) =>
           <Row>
             <p>{infoText}</p>
           </Row>
-          {multiSelect && (
+          {showWidgetSelection && (
             <Row>
               <span>Adopt message table settings:</span>
               <Select placeholder="Select widget to adopt settings"
@@ -152,12 +153,14 @@ const CSVExportModal = ({ closeModal, fields, view, currentWidgetId }: Props) =>
 };
 
 CSVExportModal.propTypes = {
+  allwaysShowWidgetSelection: PropTypes.bool,
   closeModal: PropTypes.func,
-  fields: CustomPropTypes.FieldListType.isRequired,
   currentWidgetId: PropTypes.string,
+  fields: CustomPropTypes.FieldListType.isRequired,
 };
 
 CSVExportModal.defaultProps = {
+  allwaysShowWidgetSelection: false,
   closeModal: () => {},
   currentWidgetId: null,
 };
