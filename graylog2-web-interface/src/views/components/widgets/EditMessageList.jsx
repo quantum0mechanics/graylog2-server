@@ -55,8 +55,6 @@ const EditMessageList = ({ children, config, fields, onChange }: Props) => {
   const [sortDirection] = (sort || []).map(s => s.direction);
   const selectedFieldsForSelect = config.fields.map(fieldName => ({ field: fieldName }));
 
-  console.log(selectedFieldsForSelect);
-
   const onDecoratorsChange = newDecorators => onChange(config.toBuilder().decorators(newDecorators).build());
 
   return (
