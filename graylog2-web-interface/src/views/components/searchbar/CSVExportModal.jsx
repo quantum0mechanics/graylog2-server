@@ -62,7 +62,7 @@ const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixed
   const startDownload = () => {};
 
   return (
-    <BootstrapModalWrapper showModal>
+    <BootstrapModalWrapper showModal onHide={closeModal}>
       <Modal.Header>
         <Modal.Title>
           <IfSearch>
