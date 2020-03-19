@@ -58,6 +58,7 @@ const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixed
   const [selectedFields, setSelectedFields] = useState(selectedWidget ? selectedWidget.config.fields.map(fieldName => ({ field: fieldName })) : null);
   const [selectedSort, setSelectedSort] = useState(selectedWidget ? selectedWidget.config.sort : []);
   const [selectedSortDirection] = (selectedSort).map(s => s.direction);
+  const showWidgetSelectionLink = selectedWidget && ((messageWidgets.size > 1 && !fixedWidgetId) || allwaysAllowWidgetSelection);
   const startDownload = () => {};
 
   return (
@@ -74,27 +75,26 @@ const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixed
       </Modal.Header>
       <Modal.Body>
         <Content>
-          {!selectedWidget
-            ? (
-              <CSVExportWidgetSelection selectWidget={selection => _onSelectWidget(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
-                                        viewStates={viewStates}
-                                        widgetTitles={widgetTitles}
-                                        widgets={messageWidgets} />
-            )
-            : (
-              <CSVExportSettings fields={fields}
-                                 selectedFields={selectedFields}
-                                 selectedSort={selectedSort}
-                                 selectedSortDirection={selectedSortDirection}
-                                 selectField={newFields => _onFieldSelect(newFields, setSelectedFields)}
-                                 setSelectedSort={setSelectedSort}
-                                 selectedWidget={selectedWidget}
-                                 widgetTitles={widgetTitles} />
-            )}
+          {!selectedWidget && (
+            <CSVExportWidgetSelection selectWidget={selection => _onSelectWidget(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
+                                      viewStates={viewStates}
+                                      widgetTitles={widgetTitles}
+                                      widgets={messageWidgets} />
+          )}
+          {selectedWidget && (
+            <CSVExportSettings fields={fields}
+                               selectedFields={selectedFields}
+                               selectedSort={selectedSort}
+                               selectedSortDirection={selectedSortDirection}
+                               selectField={newFields => _onFieldSelect(newFields, setSelectedFields)}
+                               setSelectedSort={setSelectedSort}
+                               selectedWidget={selectedWidget}
+                               widgetTitles={widgetTitles} />
+          )}
         </Content>
       </Modal.Body>
       <Modal.Footer>
-        {(selectedWidget && messageWidgets.size > 1 && !fixedWidgetId) && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different widget</Button>}
+        {showWidgetSelectionLink && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different widget</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
         <Button type="button" onClick={startDownload} disabled={!selectedWidget} bsStyle="primary">Start Download</Button>
       </Modal.Footer>
