@@ -94,7 +94,7 @@ const CSVExportModal = ({ closeModal, fields, view: { state: viewStates }, fixed
         </Content>
       </Modal.Body>
       <Modal.Footer>
-        {showWidgetSelectionLink && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different widget</Button>}
+        {showWidgetSelectionLink && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different message table</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
         <Button type="button" onClick={startDownload} disabled={!selectedWidget} bsStyle="primary">Start Download</Button>
       </Modal.Footer>
