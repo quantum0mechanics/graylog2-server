@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import connect from 'stores/connect';
 
-import { exportAllMessages, exportSearchTypeMessages } from 'util/MessagesExportUtils';
+import { exportAllMessages, exportSearchTypeMessages, type ExportPayload } from 'util/MessagesExportUtils';
 import CustomPropTypes from 'views/components/CustomPropTypes';
 import Widget from 'views/logic/widgets/Widget';
 import Query from 'views/logic/queries/Query';
@@ -24,6 +24,70 @@ import CSVExportSettings from 'views/components/searchbar/CSVExportSettings';
 import IfSearch from 'views/components/search/IfSearch';
 import IfDashboard from 'views/components/dashboard/IfDashboard';
 
+type Props = {
+  allwaysAllowWidgetSelection: boolean,
+  closeModal: () => void,
+  fixedWidgetId?: string,
+  fields: List<FieldTypeMapping>,
+  view: View
+};
+
+const Content = styled.div`
+  margin-left: 15px;
+  margin-right: 15px;
+`;
+
+const exportOnDashboard = (defaultExportPayload: ExportPayload, searchType: any, searchId: string) => {
+  if (!searchType) {
+    throw new Error('CSV exports on a dashboard require a selected widget!');
+  }
+  exportSearchTypeMessages(defaultExportPayload, searchId, searchType.id);
+};
+
+const exportOnSearchPage = (defaultExportPayload: ExportPayload, searchQueries: Set<Query>, searchType: ?any, searchId: string) => {
+  if (searchQueries.size !== 1) {
+    throw new Error('Searches must only have a single query!');
+  }
+  const firstQuery = searchQueries.first();
+  if (firstQuery) {
+    if (searchType) {
+      exportSearchTypeMessages(defaultExportPayload, searchId, searchType.id);
+    } else {
+      const { query, timerange } = firstQuery;
+      const streams = firstQuery.filter ? firstQuery.filter.get('filters').filter(filter => filter.get('type') === 'stream').map(filter => filter.get('id')).toArray() : [];
+      const exportPayload = {
+        ...defaultExportPayload,
+        timerange,
+        query_string: query,
+        streams,
+      };
+      exportAllMessages(exportPayload);
+    }
+  }
+};
+
+const _startDownload = (view: View, selectedWidget: ?Widget, selectedFields: { field: string }[], selectedSort: SortConfig[]) => {
+  let searchType;
+  const defaultExportPayload = {
+    fields_in_order: selectedFields.map(field => field.field),
+    sort: selectedSort.map(sortConfig => new MessageSortConfig(sortConfig.field, sortConfig.direction)),
+  };
+
+  if (selectedWidget) {
+    const widgetMapping = view.state.map(state => state.widgetMapping).flatten(true);
+    const searchTypeId = widgetMapping.get(selectedWidget.id).first();
+    const searchTypes = view.search.queries.map(query => query.searchTypes).toArray().flat();
+    searchType = searchTypes.find(entry => entry && entry.id && entry.id === searchTypeId);
+  }
+
+  if (view.type === View.Type.Dashboard) {
+    exportOnDashboard(defaultExportPayload, searchType, view.search.id);
+  }
+
+  if (view.type === View.Type.Search) {
+    exportOnSearchPage(defaultExportPayload, view.search.queries, searchType, view.search.id);
+  }
+};
 
 const _onSelectWidget = ({ value: newWidget }, setSelectedWidget, setSelectedFields, setSelectedSort) => {
   setSelectedWidget(newWidget);
@@ -45,85 +109,6 @@ const _initialWidget = (messageWidgets, fixedWidgetId, allwaysAllowWidgetSelecti
   return null;
 };
 
-type Props = {
-  allwaysAllowWidgetSelection: boolean,
-  closeModal: () => void,
-  fixedWidgetId?: string,
-  fields: List<FieldTypeMapping>,
-  view: View
-};
-
-type DefaultExportPayload = {
-  fields_in_order: string[],
-  sort: MessageSortConfig[]
-}
-
-const Content = styled.div`
-  margin-left: 15px;
-  margin-right: 15px;
-`;
-
-const exportOnDashboard = (defaultExportPayload: DefaultExportPayload, searchType: any, searchId: string) => {
-  if (!searchType) {
-    throw new Error('CSV exports on a dashboard require a selected widget!');
-  }
-  const exportPayload = {
-    ...defaultExportPayload,
-    timerange: searchType.timerange,
-    streams: searchType.streams,
-    query_string: searchType.query,
-  };
-  exportSearchTypeMessages(exportPayload, searchId, searchType.id);
-};
-
-const exportOnSearchPage = (defaultExportPayload: DefaultExportPayload, searchQueries: Set<Query>, searchType: ?any, searchId: string) => {
-  if (searchQueries.size !== 1) {
-    throw new Error('Searches must only have a single query!');
-  }
-  const firstQuery = searchQueries.first();
-  if (firstQuery) {
-    const { query, timerange } = firstQuery;
-    const streams = firstQuery.filter ? firstQuery.filter.get('filters').filter(filter => filter.get('type') === 'stream').map(filter => filter.get('id')).toArray() : [];
-    const exportPayload = {
-      ...defaultExportPayload,
-      timerange,
-      query_string: query,
-      streams,
-    };
-    if (searchType) {
-      exportSearchTypeMessages(exportPayload, searchId, searchType.id);
-    } else {
-      exportAllMessages(exportPayload);
-    }
-  }
-};
-
-const startDownload = (view: View, selectedWidget: ?Widget, selectedFields: { field: string }[], selectedSort: SortConfig[]) => {
-  let widgetMapping;
-  let searchTypes;
-  let searchType;
-  let searchTypeId;
-
-  const defaultExportPayload = {
-    fields_in_order: selectedFields.map(field => field.field),
-    sort: selectedSort.map(sortConfig => new MessageSortConfig(sortConfig.field, sortConfig.direction)),
-  };
-
-  if (selectedWidget) {
-    widgetMapping = view.state.map(state => state.widgetMapping).flatten(true);
-    searchTypeId = widgetMapping.get(selectedWidget.id).first();
-    searchTypes = view.search.queries.map(query => query.searchTypes).toArray().flat();
-    searchType = searchTypes.find(entry => entry && entry.id && entry.id === searchTypeId);
-  }
-
-  if (view.type === View.Type.Dashboard) {
-    exportOnDashboard(defaultExportPayload, searchType, view.search.id);
-  }
-
-  if (view.type === View.Type.Search) {
-    exportOnSearchPage(defaultExportPayload, view.search.queries, searchType, view.search.id);
-  }
-};
 
 const wrapFieldOption = field => ({ field });
 const defaultFields = ['timestamp', 'source', 'message'];
@@ -176,7 +161,7 @@ const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId, allwaysAllowW
       <Modal.Footer>
         {showWidgetSelectionLink && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different message table</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
-        <Button type="button" onClick={() => startDownload(view, selectedWidget, selectedFields, selectedSort)} disabled={!enableDownload} bsStyle="primary"><Icon name="cloud-download" /> Start Download</Button>
+        <Button type="button" onClick={() => _startDownload(view, selectedWidget, selectedFields, selectedSort)} disabled={!enableDownload} bsStyle="primary"><Icon name="cloud-download" /> Start Download</Button>
       </Modal.Footer>
     </BootstrapModalWrapper>
   );
