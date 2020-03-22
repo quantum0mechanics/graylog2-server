@@ -1,11 +1,10 @@
 // @flow strict
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { List, Set, Map } from 'immutable';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import connect from 'stores/connect';
 
-import ViewTypeContext from 'views/components/contexts/ViewTypeContext';
 import { exportAllMessages, exportSearchTypeMessages, type ExportPayload } from 'util/MessagesExportUtils';
 import CustomPropTypes from 'views/components/CustomPropTypes';
 import Widget from 'views/logic/widgets/Widget';
@@ -16,6 +15,7 @@ import { FieldTypesStore } from 'views/stores/FieldTypesStore';
 import { defaultSort } from 'views/logic/widgets/MessagesWidgetConfig';
 import MessageSortConfig from 'views/logic/searchtypes/messages/MessageSortConfig';
 import SortConfig from 'views/logic/aggregationbuilder/SortConfig';
+import MessagesWidget from 'views/logic/widgets/MessagesWidget';
 
 import { Modal, Button } from 'components/graylog';
 import { Icon } from 'components/common';
@@ -30,7 +30,7 @@ const Content = styled.div`
 
 type Props = {
   closeModal: () => void,
-  fixedWidgetId?: string,
+  directExportWidgetId?: string,
   fields: List<FieldTypeMapping>,
   view: View
 };
@@ -40,14 +40,14 @@ type ExportStrategy = {
   shouldAllowWidgetSelection: (singleWidgetDownload: boolean, showWidgetSelection: boolean, widgets: Map<string, Widget>) => boolean,
   shouldEnableDownload: (showWidgetSelection: boolean, selectedWidget: ?Widget) => boolean,
   shouldShowWidgetSelection: (singleWidgetDownload: boolean, selectedWidget: ?Widget, widgets: Map<string, Widget>) => boolean,
-  initialWidget: (widgets: Map<string, Widget>, fixedWidgetId: ?string) => ?Widget,
+  initialWidget: (widgets: Map<string, Widget>, directExportWidgetId: ?string) => ?Widget,
 }
 
 const _getWidgetById = (widgets, id) => widgets.find(item => item.id === id);
 
-const _initialSearchWidget = (widgets, fixedWidgetId) => {
-  if (fixedWidgetId) {
-    return _getWidgetById(widgets, fixedWidgetId);
+const _initialSearchWidget = (widgets, directExportWidgetId) => {
+  if (directExportWidgetId) {
+    return _getWidgetById(widgets, directExportWidgetId);
   }
   if (widgets.size === 1) {
     return widgets.first();
@@ -68,11 +68,10 @@ const DashboardExportStrategy: ExportStrategy = {
   shouldEnableDownload: (showWidgetSelection, selectedWidget) => !!selectedWidget,
   shouldAllowWidgetSelection: (singeWidgetDownload, showWidgetSelection) => !singeWidgetDownload && !showWidgetSelection,
   shouldShowWidgetSelection: (singeWidgetDownload, selectedWidget) => !singeWidgetDownload && !selectedWidget,
-  initialWidget: (widget, fixedWidgetId) => (fixedWidgetId ? _getWidgetById(widget, fixedWidgetId) : null),
+  initialWidget: (widget, directExportWidgetId) => (directExportWidgetId ? _getWidgetById(widget, directExportWidgetId) : null),
 };
 
-const _exportStrategy = () => {
-  const viewType = useContext(ViewTypeContext);
+const _exportStrategy = (viewType) => {
   switch (viewType) {
     case View.Type.Dashboard:
       return DashboardExportStrategy;
@@ -151,17 +150,17 @@ const _wrapFieldOption = field => ({ field });
 const _defaultFields = ['timestamp', 'source', 'message'];
 const _defaultFieldOptions = _defaultFields.map(_wrapFieldOption);
 
-const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
+const CSVExportModal = ({ closeModal, fields, view, directExportWidgetId }: Props) => {
   const { state: viewStates } = view;
-  const { shouldEnableDownload, title, initialWidget, shouldShowWidgetSelection, shouldAllowWidgetSelection } = _exportStrategy();
-  const messagesWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
+  const { shouldEnableDownload, title, initialWidget, shouldShowWidgetSelection, shouldAllowWidgetSelection } = _exportStrategy(view.type);
+  const messagesWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === MessagesWidget.type)).flatten(true);
 
-  const [selectedWidget, setSelectedWidget] = useState<?Widget>(initialWidget(messagesWidgets, fixedWidgetId));
+  const [selectedWidget, setSelectedWidget] = useState<?Widget>(initialWidget(messagesWidgets, directExportWidgetId));
   const [selectedFields, setSelectedFields] = useState<{ field: string }[]>(selectedWidget ? selectedWidget.config.fields.map(_wrapFieldOption) : _defaultFieldOptions);
   const [selectedSort, setSelectedSort] = useState<SortConfig[]>(selectedWidget ? selectedWidget.config.sort : defaultSort);
   const [selectedSortDirection] = selectedSort.map(s => s.direction);
 
-  const singleWidgetDownload = !!fixedWidgetId;
+  const singleWidgetDownload = !!directExportWidgetId;
   const widgetTitles = viewStates.flatMap(state => state.titles.get('widget'));
   const showWidgetSelection = shouldShowWidgetSelection(singleWidgetDownload, selectedWidget, messagesWidgets);
   const allowWidgetSelection = shouldAllowWidgetSelection(singleWidgetDownload, showWidgetSelection, messagesWidgets);
@@ -203,13 +202,13 @@ const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
 
 CSVExportModal.propTypes = {
   closeModal: PropTypes.func,
-  fixedWidgetId: PropTypes.string,
+  directExportWidgetId: PropTypes.string,
   fields: CustomPropTypes.FieldListType.isRequired,
 };
 
 CSVExportModal.defaultProps = {
   closeModal: () => {},
-  fixedWidgetId: null,
+  directExportWidgetId: null,
 };
 
 export default connect(
