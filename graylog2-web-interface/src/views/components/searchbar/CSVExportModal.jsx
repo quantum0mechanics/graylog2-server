@@ -1,10 +1,11 @@
 // @flow strict
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { List, Set } from 'immutable';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import connect from 'stores/connect';
 
+import ViewTypeContext from 'views/components/contexts/ViewTypeContext';
 import { exportAllMessages, exportSearchTypeMessages, type ExportPayload } from 'util/MessagesExportUtils';
 import CustomPropTypes from 'views/components/CustomPropTypes';
 import Widget from 'views/logic/widgets/Widget';
@@ -113,18 +114,35 @@ const wrapFieldOption = field => ({ field });
 const defaultFields = ['timestamp', 'source', 'message'];
 const defaultFieldOptions = defaultFields.map(wrapFieldOption);
 
-const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId, allwaysAllowWidgetSelection }: Props) => {
+// Suche global + kein message table
+// - (form wird angezeigt + auswahl wird nicht nagezeigt + download möglich)
+// Suche global + 1 message table
+// - (form wird angezeigt + auswahl wird nicht + dwonlaod möglich )
+// Suche global + n message table
+// - auswahl wird angezeigt, dwonload nicht möglich
+// Suche single export
+
+
+// Dashboard global + kein message table
+// Dashboard global + 1 message table
+// Dashboard global + n message table
+// Dashboard single
+
+
+const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
   const { state: viewStates } = view;
+  const viewType = useContext(ViewTypeContext);
+  const allwaysAllowWidgetSelection = viewType === View.Type.Dashboard && !fixedWidgetId;
   const messageWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
-  const widgetTitles = viewStates.flatMap(state => state.titles.get('widget'));
   const initialWidget = _initialWidget(messageWidgets, fixedWidgetId, allwaysAllowWidgetSelection);
   const [selectedWidget, setSelectedWidget] = useState<?Widget>(initialWidget);
   const [selectedFields, setSelectedFields] = useState<{ field: string }[]>(selectedWidget ? selectedWidget.config.fields.map(wrapFieldOption) : defaultFieldOptions);
   const [selectedSort, setSelectedSort] = useState<SortConfig[]>(selectedWidget ? selectedWidget.config.sort : defaultSort);
-  const [selectedSortDirection] = (selectedSort).map(s => s.direction);
-  const showWidgetSelection = !selectedWidget && messageWidgets.size !== 0;
+  const [selectedSortDirection] = selectedSort.map(s => s.direction);
+  const widgetTitles = viewStates.flatMap(state => state.titles.get('widget'));
+  const showWidgetSelection = !selectedWidget || (messageWidgets.size === 0 && allwaysAllowWidgetSelection);
   const showWidgetSelectionLink = selectedWidget && ((messageWidgets.size > 1 && !fixedWidgetId) || allwaysAllowWidgetSelection);
-  const enableDownload = selectedWidget || messageWidgets.size === 0;
+  const enableDownload = selectedWidget || (messageWidgets.size === 0 && viewType === View.Type.Search);
   return (
     <BootstrapModalWrapper showModal onHide={closeModal}>
       <Modal.Header>
@@ -167,14 +185,12 @@ const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId, allwaysAllowW
 };
 
 CSVExportModal.propTypes = {
-  allwaysAllowWidgetSelection: PropTypes.bool,
   closeModal: PropTypes.func,
   fixedWidgetId: PropTypes.string,
   fields: CustomPropTypes.FieldListType.isRequired,
 };
 
 CSVExportModal.defaultProps = {
-  allwaysAllowWidgetSelection: false,
   closeModal: () => {},
   fixedWidgetId: null,
 };
