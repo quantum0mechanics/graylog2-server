@@ -1,6 +1,6 @@
 // @flow strict
 import React, { useState, useContext } from 'react';
-import { List, Set } from 'immutable';
+import { List, Set, Map } from 'immutable';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import connect from 'stores/connect';
@@ -22,30 +22,75 @@ import { Icon } from 'components/common';
 import BootstrapModalWrapper from 'components/bootstrap/BootstrapModalWrapper';
 import CSVExportWidgetSelection from 'views/components/searchbar/CSVExportWidgetSelection';
 import CSVExportSettings from 'views/components/searchbar/CSVExportSettings';
-import IfSearch from 'views/components/search/IfSearch';
-import IfDashboard from 'views/components/dashboard/IfDashboard';
-
-type Props = {
-  allwaysAllowWidgetSelection: boolean,
-  closeModal: () => void,
-  fixedWidgetId?: string,
-  fields: List<FieldTypeMapping>,
-  view: View
-};
 
 const Content = styled.div`
   margin-left: 15px;
   margin-right: 15px;
 `;
 
-const exportOnDashboard = (defaultExportPayload: ExportPayload, searchType: any, searchId: string) => {
+type Props = {
+  closeModal: () => void,
+  fixedWidgetId?: string,
+  fields: List<FieldTypeMapping>,
+  view: View
+};
+
+type ExportStrategy = {
+  title: string,
+  shouldAllowWidgetSelection: (singleWidgetDownload: boolean, showWidgetSelection: boolean, widgets: Map<string, Widget>) => boolean,
+  shouldEnableDownload: (showWidgetSelection: boolean, selectedWidget: ?Widget) => boolean,
+  shouldShowWidgetSelection: (singleWidgetDownload: boolean, selectedWidget: ?Widget, widgets: Map<string, Widget>) => boolean,
+  initialWidget: (widgets: Map<string, Widget>, fixedWidgetId: ?string) => ?Widget,
+}
+
+const _getWidgetById = (widgets, id) => widgets.find(item => item.id === id);
+
+const _initialSearchWidget = (widgets, fixedWidgetId) => {
+  if (fixedWidgetId) {
+    return _getWidgetById(widgets, fixedWidgetId);
+  }
+  if (widgets.size === 1) {
+    return widgets.first();
+  }
+  return null;
+};
+
+const SearchExportStrategy: ExportStrategy = {
+  title: 'Export all search results to CSV',
+  shouldEnableDownload: showWidgetSelection => !showWidgetSelection,
+  shouldAllowWidgetSelection: (singleWidgetDownload, showWidgetSelection, widgets) => !singleWidgetDownload && !showWidgetSelection && widgets.size > 1,
+  shouldShowWidgetSelection: (singleWidgetDownload, selectedWidget, widgets) => !singleWidgetDownload && !selectedWidget && widgets.size > 1,
+  initialWidget: _initialSearchWidget,
+};
+
+const DashboardExportStrategy: ExportStrategy = {
+  title: 'Export message table search results to CSV',
+  shouldEnableDownload: (showWidgetSelection, selectedWidget) => !!selectedWidget,
+  shouldAllowWidgetSelection: (singeWidgetDownload, showWidgetSelection) => !singeWidgetDownload && !showWidgetSelection,
+  shouldShowWidgetSelection: (singeWidgetDownload, selectedWidget) => !singeWidgetDownload && !selectedWidget,
+  initialWidget: (widget, fixedWidgetId) => (fixedWidgetId ? _getWidgetById(widget, fixedWidgetId) : null),
+};
+
+const _exportStrategy = () => {
+  const viewType = useContext(ViewTypeContext);
+  switch (viewType) {
+    case View.Type.Dashboard:
+      return DashboardExportStrategy;
+    case View.Type.Search:
+    default:
+      return SearchExportStrategy;
+  }
+};
+
+
+const _exportOnDashboard = (defaultExportPayload: ExportPayload, searchType: any, searchId: string) => {
   if (!searchType) {
     throw new Error('CSV exports on a dashboard require a selected widget!');
   }
   exportSearchTypeMessages(defaultExportPayload, searchId, searchType.id);
 };
 
-const exportOnSearchPage = (defaultExportPayload: ExportPayload, searchQueries: Set<Query>, searchType: ?any, searchId: string) => {
+const _exportOnSearchPage = (defaultExportPayload: ExportPayload, searchQueries: Set<Query>, searchType: ?any, searchId: string) => {
   if (searchQueries.size !== 1) {
     throw new Error('Searches must only have a single query!');
   }
@@ -82,13 +127,14 @@ const _startDownload = (view: View, selectedWidget: ?Widget, selectedFields: { f
   }
 
   if (view.type === View.Type.Dashboard) {
-    exportOnDashboard(defaultExportPayload, searchType, view.search.id);
+    _exportOnDashboard(defaultExportPayload, searchType, view.search.id);
   }
 
   if (view.type === View.Type.Search) {
-    exportOnSearchPage(defaultExportPayload, view.search.queries, searchType, view.search.id);
+    _exportOnSearchPage(defaultExportPayload, view.search.queries, searchType, view.search.id);
   }
 };
+
 
 const _onSelectWidget = ({ value: newWidget }, setSelectedWidget, setSelectedFields, setSelectedSort) => {
   setSelectedWidget(newWidget);
@@ -100,60 +146,31 @@ const _onFieldSelect = (newFields, setSelectedFields) => {
   setSelectedFields(newFields.map(field => ({ field: field.value })));
 };
 
-const _initialWidget = (messageWidgets, fixedWidgetId, allwaysAllowWidgetSelection) => {
-  if (fixedWidgetId) {
-    return messageWidgets.find(widget => widget.id === fixedWidgetId);
-  }
-  if (!allwaysAllowWidgetSelection && messageWidgets.size === 1) {
-    return messageWidgets.first();
-  }
-  return null;
-};
 
-const wrapFieldOption = field => ({ field });
-const defaultFields = ['timestamp', 'source', 'message'];
-const defaultFieldOptions = defaultFields.map(wrapFieldOption);
-
-// Suche global + kein message table
-// - (form wird angezeigt + auswahl wird nicht nagezeigt + download möglich)
-// Suche global + 1 message table
-// - (form wird angezeigt + auswahl wird nicht + dwonlaod möglich )
-// Suche global + n message table
-// - auswahl wird angezeigt, dwonload nicht möglich
-// Suche single export
-
-
-// Dashboard global + kein message table
-// Dashboard global + 1 message table
-// Dashboard global + n message table
-// Dashboard single
-
+const _wrapFieldOption = field => ({ field });
+const _defaultFields = ['timestamp', 'source', 'message'];
+const _defaultFieldOptions = _defaultFields.map(_wrapFieldOption);
 
 const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
   const { state: viewStates } = view;
-  const viewType = useContext(ViewTypeContext);
-  const allwaysAllowWidgetSelection = viewType === View.Type.Dashboard && !fixedWidgetId;
-  const messageWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
-  const initialWidget = _initialWidget(messageWidgets, fixedWidgetId, allwaysAllowWidgetSelection);
-  const [selectedWidget, setSelectedWidget] = useState<?Widget>(initialWidget);
-  const [selectedFields, setSelectedFields] = useState<{ field: string }[]>(selectedWidget ? selectedWidget.config.fields.map(wrapFieldOption) : defaultFieldOptions);
+  const { shouldEnableDownload, title, initialWidget, shouldShowWidgetSelection, shouldAllowWidgetSelection } = _exportStrategy();
+  const messagesWidgets = viewStates.map(state => state.widgets.filter(widget => widget.type === 'messages')).flatten(true);
+
+  const [selectedWidget, setSelectedWidget] = useState<?Widget>(initialWidget(messagesWidgets, fixedWidgetId));
+  const [selectedFields, setSelectedFields] = useState<{ field: string }[]>(selectedWidget ? selectedWidget.config.fields.map(_wrapFieldOption) : _defaultFieldOptions);
   const [selectedSort, setSelectedSort] = useState<SortConfig[]>(selectedWidget ? selectedWidget.config.sort : defaultSort);
   const [selectedSortDirection] = selectedSort.map(s => s.direction);
+
+  const singleWidgetDownload = !!fixedWidgetId;
   const widgetTitles = viewStates.flatMap(state => state.titles.get('widget'));
-  const showWidgetSelection = !selectedWidget || (messageWidgets.size === 0 && allwaysAllowWidgetSelection);
-  const showWidgetSelectionLink = selectedWidget && ((messageWidgets.size > 1 && !fixedWidgetId) || allwaysAllowWidgetSelection);
-  const enableDownload = selectedWidget || (messageWidgets.size === 0 && viewType === View.Type.Search);
+  const showWidgetSelection = shouldShowWidgetSelection(singleWidgetDownload, selectedWidget, messagesWidgets);
+  const allowWidgetSelection = shouldAllowWidgetSelection(singleWidgetDownload, showWidgetSelection, messagesWidgets);
+  const enableDownload = shouldEnableDownload(showWidgetSelection, selectedWidget);
+
   return (
     <BootstrapModalWrapper showModal onHide={closeModal}>
       <Modal.Header>
-        <Modal.Title>
-          <IfSearch>
-            Export all search results to CSV
-          </IfSearch>
-          <IfDashboard>
-            Export message table search results to CSV
-          </IfDashboard>
-        </Modal.Title>
+        <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Content>
@@ -161,7 +178,7 @@ const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
             <CSVExportWidgetSelection selectWidget={selection => _onSelectWidget(selection, setSelectedWidget, setSelectedFields, setSelectedSort)}
                                       viewStates={viewStates}
                                       widgetTitles={widgetTitles}
-                                      widgets={messageWidgets} />
+                                      widgets={messagesWidgets} />
           )}
           {!showWidgetSelection && (
             <CSVExportSettings fields={fields}
@@ -176,7 +193,7 @@ const CSVExportModal = ({ closeModal, fields, view, fixedWidgetId }: Props) => {
         </Content>
       </Modal.Body>
       <Modal.Footer>
-        {showWidgetSelectionLink && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different message table</Button>}
+        {allowWidgetSelection && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different message table</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
         <Button type="button" onClick={() => _startDownload(view, selectedWidget, selectedFields, selectedSort)} disabled={!enableDownload} bsStyle="primary"><Icon name="cloud-download" /> Start Download</Button>
       </Modal.Footer>
