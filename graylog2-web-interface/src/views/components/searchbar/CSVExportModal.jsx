@@ -109,7 +109,6 @@ const _initialWidget = (messageWidgets, fixedWidgetId, allwaysAllowWidgetSelecti
   return null;
 };
 
-
 const wrapFieldOption = field => ({ field });
 const defaultFields = ['timestamp', 'source', 'message'];
 const defaultFieldOptions = defaultFields.map(wrapFieldOption);
