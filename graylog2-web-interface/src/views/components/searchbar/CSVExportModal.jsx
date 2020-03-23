@@ -4,6 +4,7 @@ import { List, Set, Map } from 'immutable';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import connect from 'stores/connect';
+import { flatten } from 'lodash';
 
 import { exportAllMessages, exportSearchTypeMessages, type ExportPayload } from 'util/MessagesExportUtils';
 import { FieldTypesStore } from 'views/stores/FieldTypesStore';
@@ -121,7 +122,7 @@ const _startDownload = (view: View, selectedWidget: ?Widget, selectedFields: { f
   if (selectedWidget) {
     const widgetMapping = view.state.map(state => state.widgetMapping).flatten(true);
     const searchTypeId = widgetMapping.get(selectedWidget.id).first();
-    const searchTypes = view.search.queries.map(query => query.searchTypes).toArray().flat();
+    const searchTypes = flatten(view.search.queries.map(query => query.searchTypes).toArray());
     searchType = searchTypes.find(entry => entry && entry.id && entry.id === searchTypeId);
   }
 
@@ -194,7 +195,7 @@ const CSVExportModal = ({ closeModal, fields, view, directExportWidgetId }: Prop
       <Modal.Footer>
         {allowWidgetSelection && <Button bsStyle="link" onClick={() => setSelectedWidget(null)} className="pull-left">Select different message table</Button>}
         <Button type="button" onClick={closeModal}>Close</Button>
-        <Button type="button" onClick={() => _startDownload(view, selectedWidget, selectedFields, selectedSort)} disabled={!enableDownload} bsStyle="primary"><Icon name="cloud-download" /> Start Download</Button>
+        <Button type="button" onClick={() => _startDownload(view, selectedWidget, selectedFields, selectedSort)} disabled={!enableDownload} bsStyle="primary" data-testid="csv-download-button"><Icon name="cloud-download" /> Start Download</Button>
       </Modal.Footer>
     </BootstrapModalWrapper>
   );
