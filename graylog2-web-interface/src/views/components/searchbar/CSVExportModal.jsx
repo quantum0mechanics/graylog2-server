@@ -39,7 +39,7 @@ type Props = {
 type ExportStrategy = {
   title: string,
   shouldAllowWidgetSelection: (singleWidgetDownload: boolean, showWidgetSelection: boolean, widgets: Map<string, Widget>) => boolean,
-  shouldEnableDownload: (showWidgetSelection: boolean, selectedWidget: ?Widget) => boolean,
+  shouldEnableDownload: (showWidgetSelection: boolean, selectedWidget: ?Widget, selectedFields: { field: string }[]) => boolean,
   shouldShowWidgetSelection: (singleWidgetDownload: boolean, selectedWidget: ?Widget, widgets: Map<string, Widget>) => boolean,
   initialWidget: (widgets: Map<string, Widget>, directExportWidgetId: ?string) => ?Widget,
 }
@@ -58,7 +58,7 @@ const _initialSearchWidget = (widgets, directExportWidgetId) => {
 
 const SearchExportStrategy: ExportStrategy = {
   title: 'Export all search results to CSV',
-  shouldEnableDownload: showWidgetSelection => !showWidgetSelection,
+  shouldEnableDownload: (showWidgetSelection, selectedWidget, selectedFields) => !showWidgetSelection && !!selectedFields && selectedFields.length > 0,
   shouldAllowWidgetSelection: (singleWidgetDownload, showWidgetSelection, widgets) => !singleWidgetDownload && !showWidgetSelection && widgets.size > 1,
   shouldShowWidgetSelection: (singleWidgetDownload, selectedWidget, widgets) => !singleWidgetDownload && !selectedWidget && widgets.size > 1,
   initialWidget: _initialSearchWidget,
@@ -66,7 +66,7 @@ const SearchExportStrategy: ExportStrategy = {
 
 const DashboardExportStrategy: ExportStrategy = {
   title: 'Export message table search results to CSV',
-  shouldEnableDownload: (showWidgetSelection, selectedWidget) => !!selectedWidget,
+  shouldEnableDownload: (showWidgetSelection, selectedWidget, selectedFields) => !!selectedWidget && !!selectedFields && selectedFields.length > 0,
   shouldAllowWidgetSelection: (singeWidgetDownload, showWidgetSelection) => !singeWidgetDownload && !showWidgetSelection,
   shouldShowWidgetSelection: (singeWidgetDownload, selectedWidget) => !singeWidgetDownload && !selectedWidget,
   initialWidget: (widget, directExportWidgetId) => (directExportWidgetId ? _getWidgetById(widget, directExportWidgetId) : null),
@@ -165,7 +165,7 @@ const CSVExportModal = ({ closeModal, fields, view, directExportWidgetId }: Prop
   const widgetTitles = viewStates.flatMap(state => state.titles.get('widget'));
   const showWidgetSelection = shouldShowWidgetSelection(singleWidgetDownload, selectedWidget, messagesWidgets);
   const allowWidgetSelection = shouldAllowWidgetSelection(singleWidgetDownload, showWidgetSelection, messagesWidgets);
-  const enableDownload = shouldEnableDownload(showWidgetSelection, selectedWidget);
+  const enableDownload = shouldEnableDownload(showWidgetSelection, selectedWidget, selectedFields);
 
   return (
     <BootstrapModalWrapper showModal onHide={closeModal}>
