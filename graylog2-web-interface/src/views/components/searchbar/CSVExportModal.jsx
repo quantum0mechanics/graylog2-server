@@ -6,22 +6,22 @@ import styled from 'styled-components';
 import connect from 'stores/connect';
 
 import { exportAllMessages, exportSearchTypeMessages, type ExportPayload } from 'util/MessagesExportUtils';
-import CustomPropTypes from 'views/components/CustomPropTypes';
-import Widget from 'views/logic/widgets/Widget';
-import Query from 'views/logic/queries/Query';
-import View from 'views/logic/views/View';
-import FieldTypeMapping from 'views/logic/fieldtypes/FieldTypeMapping';
 import { FieldTypesStore } from 'views/stores/FieldTypesStore';
 import { defaultSort } from 'views/logic/widgets/MessagesWidgetConfig';
+import FieldTypeMapping from 'views/logic/fieldtypes/FieldTypeMapping';
 import MessageSortConfig from 'views/logic/searchtypes/messages/MessageSortConfig';
-import SortConfig from 'views/logic/aggregationbuilder/SortConfig';
 import MessagesWidget from 'views/logic/widgets/MessagesWidget';
+import Query from 'views/logic/queries/Query';
+import SortConfig from 'views/logic/aggregationbuilder/SortConfig';
+import View from 'views/logic/views/View';
+import Widget from 'views/logic/widgets/Widget';
 
-import { Modal, Button } from 'components/graylog';
 import { Icon } from 'components/common';
+import { Modal, Button } from 'components/graylog';
 import BootstrapModalWrapper from 'components/bootstrap/BootstrapModalWrapper';
-import CSVExportWidgetSelection from 'views/components/searchbar/CSVExportWidgetSelection';
 import CSVExportSettings from 'views/components/searchbar/CSVExportSettings';
+import CSVExportWidgetSelection from 'views/components/searchbar/CSVExportWidgetSelection';
+import CustomPropTypes from 'views/components/CustomPropTypes';
 
 const Content = styled.div`
   margin-left: 15px;
