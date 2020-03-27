@@ -39,7 +39,7 @@ const _onSortChange = (sort: $PropertyType<AggregationWidgetConfig, 'sort'>, con
 };
 
 const _onSortDirectionChange = (direction: $PropertyType<AggregationWidgetConfig, 'direction'>, config, onChange) => {
-  const newConfig = config.toBuilder().sort(config.sort.map(sort => sort.toBuilder().direction(direction).build())).build();
+  const newConfig = config.toBuilder().sort(config.sort.map((sort) => sort.toBuilder().direction(direction).build())).build();
   return onChange(newConfig);
 };
 
@@ -52,29 +52,29 @@ type Props = {
 
 const EditMessageList = ({ children, config, fields, onChange }: Props) => {
   const { sort } = config;
-  const [sortDirection] = (sort || []).map(s => s.direction);
-  const selectedFieldsForSelect = config.fields.map(fieldName => ({ field: fieldName }));
+  const [sortDirection] = (sort || []).map((s) => s.direction);
+  const selectedFieldsForSelect = config.fields.map((fieldName) => ({ field: fieldName }));
 
-  const onDecoratorsChange = newDecorators => onChange(config.toBuilder().decorators(newDecorators).build());
+  const onDecoratorsChange = (newDecorators) => onChange(config.toBuilder().decorators(newDecorators).build());
 
   return (
     <Row style={{ height: '100%', paddingBottom: '15px' }}>
       <FullHeightCol md={3}>
         <DescriptionBox description="Fields">
           <FieldSelect fields={fields}
-                       onChange={newFields => _onFieldSelectionChanged(newFields, config, onChange)}
+                       onChange={(newFields) => _onFieldSelectionChanged(newFields, config, onChange)}
                        value={selectedFieldsForSelect} />
           <Checkbox checked={config.showMessageRow} onChange={() => _onShowMessageRowChanged(config, onChange)}>
             Show message in new row
           </Checkbox>
         </DescriptionBox>
         <DescriptionBox description="Sorting">
-          <FieldSortSelect fields={fields} sort={sort} onChange={data => _onSortChange(data, config, onChange)} />
+          <FieldSortSelect fields={fields} sort={sort} onChange={(data) => _onSortChange(data, config, onChange)} />
         </DescriptionBox>
         <DescriptionBox description="Direction">
           <SortDirectionSelect disabled={!sort || sort.length === 0}
                                direction={sortDirection && sortDirection.direction}
-                               onChange={data => _onSortDirectionChange(data, config, onChange)} />
+                               onChange={(data) => _onSortDirectionChange(data, config, onChange)} />
         </DescriptionBox>
         <DescriptionBox description="Decorators">
           <DecoratorSidebar stream="000000000000000000000001"

@@ -100,28 +100,7 @@ const _editComponentForType = (type) => {
 };
 
 class Widget extends React.Component<Props, State> {
-  static propTypes = {
-    id: PropTypes.string.isRequired,
-    view: PropTypes.object.isRequired,
-    widget: PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      type: PropTypes.string.isRequired,
-      computationTimeRange: PropTypes.object,
-      config: PropTypes.object.isRequired,
-      filter: PropTypes.string,
-    }).isRequired,
-    data: PropTypes.any,
-    editing: PropTypes.bool,
-    errors: WidgetErrorsList,
-    height: PropTypes.number,
-    width: PropTypes.number,
-    fields: PropTypes.any.isRequired,
-    onSizeChange: PropTypes.func.isRequired,
-    onPositionsChange: PropTypes.func.isRequired,
-    title: PropTypes.string.isRequired,
-    position: PropTypes.object.isRequired,
-  };
-
+  // eslint-disable-next-line react/static-property-placement
   static defaultProps = {
     height: 1,
     width: 1,
@@ -247,7 +226,7 @@ class Widget extends React.Component<Props, State> {
                       fields={fields}
                       filter={filter}
                       height={height}
-                      onConfigChange={newWidgetConfig => this._onWidgetConfigChange(id, newWidgetConfig)}
+                      onConfigChange={(newWidgetConfig) => this._onWidgetConfigChange(id, newWidgetConfig)}
                       setLoadingState={this._setLoadingState}
                       title={title}
                       toggleEdit={this._onToggleEdit}
@@ -274,14 +253,14 @@ class Widget extends React.Component<Props, State> {
               <WidgetHeader title={title}
                             hideDragHandle
                             loading={loading}
-                            onRename={newTitle => TitlesActions.set('widget', id, newTitle)}
+                            onRename={(newTitle) => TitlesActions.set('widget', id, newTitle)}
                             editing={editing} />
               <EditComponent config={config}
                              fields={fields}
                              editing={editing}
                              id={id}
                              type={widget.type}
-                             onChange={newWidgetConfig => this._onWidgetConfigChange(id, newWidgetConfig)}>
+                             onChange={(newWidgetConfig) => this._onWidgetConfigChange(id, newWidgetConfig)}>
                 <WidgetErrorBoundary>
                   {visualization}
                 </WidgetErrorBoundary>
@@ -296,11 +275,11 @@ class Widget extends React.Component<Props, State> {
       <WidgetColorContext id={id}>
         <WidgetFrame widgetId={id} onSizeChange={onSizeChange}>
           <InteractiveContext.Consumer>
-            {interactive => (
+            {(interactive) => (
               <WidgetHeader title={title}
                             hideDragHandle={!interactive}
                             loading={loading}
-                            onRename={newTitle => TitlesActions.set('widget', id, newTitle)}
+                            onRename={(newTitle) => TitlesActions.set('widget', id, newTitle)}
                             editing={editing}>
                 <IfInteractive>
                   <IfDashboard>
@@ -341,5 +320,27 @@ class Widget extends React.Component<Props, State> {
     );
   }
 }
+
+Widget.propTypes = {
+  id: PropTypes.string.isRequired,
+  view: PropTypes.object.isRequired,
+  widget: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    computationTimeRange: PropTypes.object,
+    config: PropTypes.object.isRequired,
+    filter: PropTypes.string,
+  }).isRequired,
+  data: PropTypes.any,
+  editing: PropTypes.bool,
+  errors: WidgetErrorsList,
+  height: PropTypes.number,
+  width: PropTypes.number,
+  fields: PropTypes.any.isRequired,
+  onSizeChange: PropTypes.func.isRequired,
+  onPositionsChange: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired,
+  position: PropTypes.object.isRequired,
+};
 
 export default connect(Widget, { view: ViewStore });
