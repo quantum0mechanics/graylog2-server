@@ -105,17 +105,17 @@ export const SearchStore = singletonStore(
         }
         return resolve(Bluebird.delay(250)
           .then(() => SearchJobActions.jobStatus(job.id))
-          .then(jobStatus => this.trackJobStatus(jobStatus, search)));
+          .then((jobStatus) => this.trackJobStatus(jobStatus, search)));
       });
     },
 
     trackJob(search: Search, executionState: SearchExecutionState): Promise<SearchResult> {
-      return SearchJobActions.run(search, executionState).then(job => this.trackJobStatus(job, search));
+      return SearchJobActions.run(search, executionState).then((job) => this.trackJobStatus(job, search));
     },
 
     execute(executionState: SearchExecutionState): Promise<SearchExecutionResult> {
       const handleSearchResult = (searchResult: SearchResult) => searchResult;
-      const startActionPromise = executePromise => SearchActions.execute.promise(executePromise);
+      const startActionPromise = (executePromise) => SearchActions.execute.promise(executePromise);
       return this._executePromise(executionState, startActionPromise, handleSearchResult);
     },
 
@@ -137,7 +137,7 @@ export const SearchStore = singletonStore(
         const updatedResult = this.result.updateSearchTypes(updatedSearchTypes);
         return updatedResult;
       };
-      const startActionPromise = executePromise => SearchActions.reexecuteSearchTypes.promise(executePromise);
+      const startActionPromise = (executePromise) => SearchActions.reexecuteSearchTypes.promise(executePromise);
       return this._executePromise(executionState, startActionPromise, handleSearchResult);
     },
 
@@ -167,7 +167,10 @@ export const SearchStore = singletonStore(
             this._trigger();
             this.executePromise = undefined;
             return { result, widgetMapping };
-          }, displayError);
+          }, (error) => {
+            displayError(error);
+            throw error;
+          });
         startActionPromise(this.executePromise);
         return this.executePromise;
       }
