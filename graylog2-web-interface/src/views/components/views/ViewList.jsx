@@ -8,7 +8,7 @@ import View from './View';
 
 const itemActionsFactory = (view, onViewDelete) => {
   return (
-    <IfPermitted permissions={['*']}>
+    <IfPermitted permissions={[`view:edit:${view.id}`, 'view:edit']} anyPermissions>
       <ButtonToolbar>
         <DropdownButton title="Actions" id={`view-actions-dropdown-${view.id}`} bsSize="small" pullRight>
           <MenuItem onSelect={onViewDelete(view)}>Delete</MenuItem>
