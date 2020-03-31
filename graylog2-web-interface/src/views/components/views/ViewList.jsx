@@ -1,126 +1,110 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import createReactClass from 'create-react-class';
 import { ButtonToolbar, DropdownButton, MenuItem } from 'components/graylog';
 import IfPermitted from 'components/common/IfPermitted';
 
 import { PaginatedList, SearchForm, Spinner, EntityList } from 'components/common';
 import View from './View';
 
-const ViewList = createReactClass({
-  propTypes: {
-    views: PropTypes.arrayOf(PropTypes.object),
-    pagination: PropTypes.shape({
-      total: PropTypes.number.isRequired,
-      page: PropTypes.number.isRequired,
-      perPage: PropTypes.number.isRequired,
-    }).isRequired,
-    handleSearch: PropTypes.func.isRequired,
-    handleViewDelete: PropTypes.func.isRequired,
-  },
+const itemActionsFactory = (view, onViewDelete) => {
+  return (
+    <IfPermitted permissions={['*']}>
+      <ButtonToolbar>
+        <DropdownButton title="Actions" id={`view-actions-dropdown-${view.id}`} bsSize="small" pullRight>
+          <MenuItem onSelect={onViewDelete(view)}>Delete</MenuItem>
+        </DropdownButton>
+      </ButtonToolbar>
+    </IfPermitted>
+  );
+};
 
-  getDefaultProps() {
-    return {
-      views: undefined,
-    };
-  },
+const ViewList = ({ pagination, handleSearch, handleViewDelete, views }) => {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
-  getInitialState() {
-    return {
-      query: '',
-      page: 1,
-      perPage: 10,
-    };
-  },
+  const execSearch = (resetLoadingState = () => {}) => {
+    handleSearch(query, page, perPage).then(resetLoadingState).catch(resetLoadingState);
+  };
 
-  componentDidMount() {
-    this.execSearch();
-  },
+  useEffect(() => {
+    execSearch();
+  }, [query, page, setPage]);
 
-  execSearch(resetLoadingState = () => {
-  }) {
-    const { query, page, perPage } = this.state;
-    this.props.handleSearch(query, page, perPage).then(resetLoadingState).catch(resetLoadingState);
-  },
 
-  handleSearch(query, resetLoadingState) {
-    this.setState({ query: query, page: 1 }, () => {
-      this.execSearch(resetLoadingState);
-    });
-  },
+  const onSearch = (newQuery, resetLoadingState) => {
+    setQuery(newQuery);
+    setPage(1);
+    resetLoadingState();
+  };
 
-  handleSearchReset() {
-    this.setState({ query: '', page: 1 }, () => {
-      this.execSearch();
-    });
-  },
+  const onSearchReset = () => {
+    setQuery('');
+    setPage(1);
+  };
 
-  handlePageChange(page, perPage) {
-    this.setState({ page: page, perPage: perPage }, () => {
-      this.execSearch();
-    });
-  },
+  const onPageChange = (newPage, newPerPage) => {
+    setPage(newPage);
+    setPerPage(newPerPage);
+  };
 
-  handleViewDelete(view) {
+  const onViewDelete = (view) => {
     return () => {
-      this.props.handleViewDelete(view).then(() => {
-        this.setState({ page: 1 }, () => {
-          this.execSearch();
-        });
+      handleViewDelete(view).then(() => {
+        setPage(1);
+        execSearch();
       });
     };
-  },
+  };
 
-  itemActionsFactory(view) {
-    return (
-      <IfPermitted permissions={['*']}>
-        <ButtonToolbar>
-          <DropdownButton title="Actions" id={`view-actions-dropdown-${view.id}`} bsSize="small" pullRight>
-            <MenuItem onSelect={this.handleViewDelete(view)}>Delete</MenuItem>
-          </DropdownButton>
-        </ButtonToolbar>
-      </IfPermitted>
-    );
-  },
+  if (!views) {
+    return <Spinner text="Loading views..." />;
+  }
 
-  render() {
-    const list = this.props.views;
+  const items = views.map((view) => (
+    <View key={`view-${view.id}`}
+          id={view.id}
+          owner={view.owner}
+          createdAt={view.created_at}
+          title={view.title}
+          summary={view.summary}
+          requires={view.requires}
+          description={view.description}>
+      {itemActionsFactory(view, onViewDelete)}
+    </View>
+  ));
 
-    if (!list) {
-      return <Spinner text="Loading views..." />;
-    }
+  return (
+    <PaginatedList onChange={onPageChange}
+                   activePage={pagination.page}
+                   totalItems={pagination.total}
+                   pageSize={pagination.perPage}
+                   pageSizes={[10, 50, 100]}>
+      <div style={{ marginBottom: 15 }}>
+        <SearchForm onSearch={onSearch}
+                    onReset={onSearchReset}
+                    topMargin={0} />
+      </div>
+      <EntityList items={items}
+                  bsNoItemsStyle="success"
+                  noItemsText="There are no views present/matching the filter!" />
+    </PaginatedList>
+  );
+};
 
-    const items = list.map(view => (
-      <View key={`view-${view.id}`}
-            id={view.id}
-            owner={view.owner}
-            createdAt={view.created_at}
-            title={view.title}
-            summary={view.summary}
-            requires={view.requires}
-            description={view.description}>
-        {this.itemActionsFactory(view)}
-      </View>
-    ));
+ViewList.propTypes = {
+  views: PropTypes.arrayOf(PropTypes.object),
+  pagination: PropTypes.shape({
+    total: PropTypes.number.isRequired,
+    page: PropTypes.number.isRequired,
+    perPage: PropTypes.number.isRequired,
+  }).isRequired,
+  handleSearch: PropTypes.func.isRequired,
+  handleViewDelete: PropTypes.func.isRequired,
+};
 
-    const { total, page, perPage } = this.props.pagination;
-    return (
-      <PaginatedList onChange={this.handlePageChange}
-                     activePage={page}
-                     totalItems={total}
-                     pageSize={perPage}
-                     pageSizes={[10, 50, 100]}>
-        <div style={{ marginBottom: 15 }}>
-          <SearchForm onSearch={this.handleSearch}
-                      onReset={this.handleSearchReset}
-                      topMargin={0} />
-        </div>
-        <EntityList items={items}
-                    bsNoItemsStyle="success"
-                    noItemsText="There are no views present/matching the filter!" />
-      </PaginatedList>
-    );
-  },
-});
+ViewList.defaultProps = {
+  views: undefined,
+};
 
 export default ViewList;
