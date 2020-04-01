@@ -18,6 +18,8 @@ package org.graylog2;
 
 import org.junit.Test;
 
+import java.util.*;
+
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -28,6 +30,17 @@ public class HostSystemTest {
     @Test
     public void testGetAvailableProcessors() {
         assertTrue(HostSystem.getAvailableProcessors() > 0);
+    }
+
+    @Test
+    public void mytest()
+    {
+        HashSet<Object> test = new HashSet<>();
+        test.add(null);
+        test.add("123 ");
+        Iterator iter = test.iterator();
+        iter.next();
+        System.out.println(((String)(iter.next())).trim()); // if iter.next() is null, will throw NPE
     }
 
 }
