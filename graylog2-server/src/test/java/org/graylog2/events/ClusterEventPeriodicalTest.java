@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -301,6 +302,17 @@ public class ClusterEventPeriodicalTest {
         assertThat(collection.getName()).isEqualTo(ClusterEventPeriodical.COLLECTION_NAME);
         assertThat(collection.getIndexInfo()).hasSize(2);
         assertThat(collection.getWriteConcern()).isEqualTo(WriteConcern.JOURNALED);
+    }
+
+    @Test
+    public void mytest()
+    {
+        HashSet<Object> test = new HashSet<Object>();
+        test.add(null);
+        test.add("123 ");
+        Iterator iter = test.iterator();
+        iter.next();
+        System.out.println(((String)(iter.next())).trim()); // if iter.next() is null, will throw NPE
     }
 
     public static class SimpleEventHandler {
